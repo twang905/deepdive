@@ -33,15 +33,28 @@ export default function Home() {
   const [pasteLabel, setPasteLabel] = useState("Paste");
 
   // TODO: Not good that it's a tree but that's okay
-  const [forest, setForest] = useState<Tree[]>([
-    {
-      // set as a new uuid
-      id: "root",
-      role: "user",
-      content: "",
-      children: [],
-    },
-  ]);
+  const [forest, setForest] = useState<Tree[] | undefined>(undefined);
+
+  useEffect(() => {
+    if (!forest) {
+      const storageForest = localStorage.getItem("forest");
+      setForest(
+        JSON.parse(
+          storageForest !== null
+            ? storageForest
+            : JSON.stringify([
+                {
+                  // set as a new uuid
+                  id: "root",
+                  role: "user",
+                  content: "",
+                  children: [],
+                },
+              ])
+        )
+      );
+    }
+  }, []);
 
   // when pasting into the window, set the forest to that json
   useEffect(() => {
@@ -51,6 +64,7 @@ export default function Home() {
         try {
           const newForest = JSON.parse(json);
           setForest(newForest);
+          localStorage.setItem("forest", json);
         } catch (e) {
           console.error(e);
         }
@@ -60,6 +74,17 @@ export default function Home() {
     window.addEventListener("paste", handlePaste);
     return () => window.removeEventListener("paste", handlePaste);
   }, []);
+
+  useEffect(() => {
+    console.log(forest);
+    if (forest !== null && forest !== undefined) {
+      localStorage.setItem("forest", JSON.stringify(forest));
+    }
+  }, [forest]);
+
+  if (!forest) {
+    return <p>No forest</p>;
+  }
 
   return (
     <main className="p-24 bg-slate-50 min-h-screen">
@@ -107,7 +132,7 @@ export default function Home() {
             tree={tree}
             setTree={(callback) => {
               setForest((forest) =>
-                forest.map((otherTree) =>
+                forest?.map((otherTree) =>
                   otherTree.id === tree.id ? callback(otherTree) : otherTree
                 )
               );
@@ -117,7 +142,7 @@ export default function Home() {
               forest.length > 1
                 ? () =>
                     setForest((forest) =>
-                      forest.filter((otherTree) => otherTree.id !== tree.id)
+                      forest?.filter((otherTree) => otherTree.id !== tree.id)
                     )
                 : undefined
             }
@@ -128,15 +153,19 @@ export default function Home() {
           className="mt-6"
           role="user"
           onClick={() => {
-            setForest((forest) => [
-              ...forest,
-              {
-                id: crypto.randomUUID(),
-                role: "user",
-                content: "",
-                children: [],
-              },
-            ]);
+            setForest((forest) =>
+              forest === undefined
+                ? undefined
+                : [
+                    ...forest,
+                    {
+                      id: crypto.randomUUID(),
+                      role: "user",
+                      content: "",
+                      children: [],
+                    },
+                  ]
+            );
           }}
         >
           + New thread
